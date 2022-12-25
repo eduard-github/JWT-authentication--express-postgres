@@ -17,7 +17,7 @@ async function getUserById(id: string) {
   const params = [id];
   try {
     const res = await query(sql, params);
-    console.log('SERVICE ROW RES', res?.rows[0]);
+    console.log('SERVICE RES', res?.rows[0]);
     return res?.rows[0]
   } catch (error) {
     console.log('SERVICE ERROR FROM DB', error)  

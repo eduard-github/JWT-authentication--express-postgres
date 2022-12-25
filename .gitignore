@@ -2,3 +2,4 @@ node_modules/
 bin/
 /hint.md
 /db.sql
+/coverage
