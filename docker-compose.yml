@@ -9,3 +9,6 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: 123456
       POSTGRES_DB: apidb
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+        - ./:/var/lib/postgresql/data
