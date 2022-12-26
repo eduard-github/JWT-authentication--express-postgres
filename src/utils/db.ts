@@ -16,8 +16,8 @@ export async function query(sql: string, params?: any[]): Promise<QueryResult> {
     const res = await client.query(sql, params);
     client.release();
     return res;
-  } catch (err) {
-    console.error('DATABASE ERROR', (err as Error).message);
-    return Promise.reject((err as Error).message)
+  } catch (error) {
+    console.error('DATABASE ERROR', error);
+    return Promise.reject(error)
   }
 }
