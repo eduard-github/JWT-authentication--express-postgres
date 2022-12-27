@@ -1,10 +1,12 @@
 import fs from 'fs'
 import jwt, { SignOptions, VerifyOptions } from 'jsonwebtoken';
+import bcrypt from 'bcrypt'
 import config from '../../config';
-
 import { query } from "../../utils/db";
 
 const privateKey = fs.readFileSync(config.privateKeyFile)
+const publicKey = fs.readFileSync(config.publicKeyFile)
+
 const privateSecret = {
   key: privateKey,
   passphrase: config.privateKeyPassphrase
@@ -13,17 +15,15 @@ const signOptions: SignOptions = {
   algorithm: 'RS256',
   expiresIn: '1h'
 }
-
-const publicKey = fs.readFileSync(config.publicKeyFile)
 const verifyOptions: VerifyOptions = {
   algorithms: ['RS256']
 }
 
-const createAuthTocken = (userId: string): Promise<{token: string}>  => {
+const createAuthToken = (userId: string): Promise<string>  => {
   return new Promise((resolve, reject) => {
     jwt.sign({ userId }, privateSecret, signOptions, (err: Error | null, token: string | undefined) => { 
       if (err === null && token !== undefined) {
-        resolve({ token })
+        resolve(token)
       } else {
         reject(err)
       }
@@ -31,46 +31,43 @@ const createAuthTocken = (userId: string): Promise<{token: string}>  => {
   })
 }
 
-async function signIn(email: string, password: string) {
-  const sql = 'SELECT * FROM users WHERE email = $1';
-  const params = [email];
+async function signUp(name: string, email: string, password: string) {
   try {
-    const res = await query(sql, params);
-    const user = res?.rows[0]
-    console.log('SERVICE RES', user);
-
-    if(!user) {
-      return {error: {type: 'invalid_credentials', message: 'Invalid Login/Password'}} 
+    const result = await query('SELECT * FROM users WHERE email = $1', [email]);
+    if(result.rowCount > 0) {
+      return {error: {type: 'accout_already_exists', message: 'Account already exists'}} 
     }
-
-    const passwordMatch = user.password === password
-    if(!passwordMatch) {
-      return {error: {type: 'invalid_credentials', message: 'Invalid Login/Password'}} 
-    }
-
-    const authTocken = await createAuthTocken(user.id)
-    return {userId: user.id, token: authTocken.token}
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const insertResult = await query('INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING *', [name, email, hashedPassword]);
+    console.log('SERVICE RES', insertResult);
+    return insertResult?.rows[0]
   } catch (error) {
-    console.log('SERVICE ERROR FROM DB', error.message)  
+    console.log('SERVICE ERROR FROM DB', error)  
+    return Promise.reject({error: {type: 'internal_server_error', message: error}})
+  }
+}
+
+
+async function signIn(email: string, password: string) {
+  try {
+    const result = await query('SELECT * FROM users WHERE email = $1', [email]);
+    console.log('SERVICE RES', result);
+    if(result.rowCount === 0) {
+      return {error: {type: 'user_not_found', message: 'User not found'}} 
+    }
+    const user = result?.rows[0]
+    const valid = await bcrypt.compare(password, user.password);
+    if(!valid) {
+      return {error: {type: 'invalid_password', message: 'Invalid password'}} 
+    }
+    const authToken = await createAuthToken(user.id)
+    return { token: authToken }
+  } catch (error) {
+    console.log('SERVICE ERROR FROM DB', error)  
     return Promise.reject({error: {type: 'internal_server_error', message: 'Internal Server Error'}})
   }
 }
 
-async function signUp(name: string, email: string, password: string) {
-  const sql = 'INSERT INTO users (name, email, password) VALUES ($1, $2, $3) RETURNING *';
-  const params = [name, email, password];
-  try {
-    const res = await query(sql, params);
-    console.log('SERVICE RES', res?.rows[0]);
-    return res?.rows[0]
-  } catch (error) {
-    console.log('SERVICE ERROR FROM DB', error.message)  
-    if(error.code === "23505") {
-      return Promise.reject({error: {type: 'account_already_exists', message: email }})
-    }
-    return Promise.reject({error: {type: 'internal_server_error', message: error}})
-  }
-}
 
 // async function getUserById(id: string) {
 //   const sql = 'SELECT * FROM users WHERE id = $1';

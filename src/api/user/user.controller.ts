@@ -4,20 +4,19 @@ import UserService from './user.service'
 
 const router = express.Router()
 
-router.post('/signin', async (req: Request, res: Response) => {
-  const { email, password }: { email: string, password: string } = req.body
+router.post('/signup', async (req: Request, res: Response) => {
+  const { name, email, password } = req.body
   try {
-    const resp = await UserService.signIn(email, password)
-    console.log("CONTROL RES:", resp)
-    if (resp?.error) {
-      if (resp.error.type === 'invalid_credentials') {
-        jsonResponse(res, 404, resp)
+    const result = await UserService.signUp(name, email, password)
+    console.log("CONTROL RES:", result)
+    if (result?.error) {
+      if (result.error.type === 'accout_already_exists') {
+        jsonResponse(res, 409, result)
       } else {
-        throw new Error(`unsupported ${resp}`)
+        throw new Error(`unsupported ${result}`)
       }
     } else {
-      const {userId, token} = resp as {token: string, userId: string}
-      jsonResponse(res, 200, {userId: userId, token: token})
+      jsonResponse(res, 201, result)
     }
   } catch (error) {
     console.log("CONTROL ERROR FROM DB:", error)
@@ -25,21 +24,28 @@ router.post('/signin', async (req: Request, res: Response) => {
   }
 })
 
-router.post('/signup', async (req: Request, res: Response) => {
-  const { name, email, password }: { name: string, email: string, password: string } = req.body
+router.post('/signin', async (req: Request, res: Response) => {
+  const { email, password } = req.body
   try {
-    const resp = await UserService.signUp(name, email, password)
-    console.log("CONTROL RES:", resp)
-    if(!res) {
-      jsonResponse(res, 404, {error: {type: 'not_found', message: 'Not Found'}})
+    const result = await UserService.signIn(email, password)
+    console.log("CONTROL RES:", result)
+    if (result?.error) {
+      if (result.error.type === 'user_not_found') {
+        jsonResponse(res, 404, result)
+      } 
+      if (result.error.type === 'invalid_password') {
+        jsonResponse(res, 401, result)
+      } 
     } else {
-      jsonResponse(res, 200, resp)
+      const {token} = result as {token: string}
+      jsonResponse(res, 200, {token})
     }
   } catch (error) {
     console.log("CONTROL ERROR FROM DB:", error)
     jsonResponse(res, 500, error)
   }
 })
+
 
 
 // router.get('/:userId', async (req: Request, res: Response) => {
