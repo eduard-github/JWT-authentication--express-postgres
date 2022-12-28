@@ -5,9 +5,8 @@ import UserService from './user.service'
 const router = express.Router()
 
 router.post('/signup', async (req: Request, res: Response) => {
-  const { name, email, password } = req.body
   try {
-    const result = await UserService.signUp(name, email, password)
+    const result = await UserService.signUp(req.body)
     console.log("CONTROL RES:", result)
     if (result?.error) {
       if (result.error.type === 'accout_already_exists') {
@@ -25,9 +24,8 @@ router.post('/signup', async (req: Request, res: Response) => {
 })
 
 router.post('/signin', async (req: Request, res: Response) => {
-  const { email, password } = req.body
   try {
-    const result = await UserService.signIn(email, password)
+    const result = await UserService.signIn(req.body)
     console.log("CONTROL RES:", result)
     if (result?.error) {
       if (result.error.type === 'user_not_found') {
@@ -37,8 +35,8 @@ router.post('/signin', async (req: Request, res: Response) => {
         jsonResponse(res, 401, result)
       } 
     } else {
-      const {token} = result as {token: string}
-      jsonResponse(res, 200, {token})
+      const {userId, token} = result as {userId: string, token: string}
+      jsonResponse(res, 200, {userId, token})
     }
   } catch (error) {
     console.log("CONTROL ERROR FROM DB:", error)

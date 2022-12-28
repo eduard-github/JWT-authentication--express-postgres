@@ -1,11 +1,11 @@
 import fs from 'fs'
-import jwt, { SignOptions, VerifyOptions } from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import bcrypt from 'bcrypt'
 import config from '../../config';
 import { query } from "../../utils/db";
+import { User } from './dto/user.dto';
 
 const privateKey = fs.readFileSync(config.privateKeyFile)
-const publicKey = fs.readFileSync(config.publicKeyFile)
 
 const privateSecret = {
   key: privateKey,
@@ -14,9 +14,6 @@ const privateSecret = {
 const signOptions: SignOptions = {
   algorithm: 'RS256',
   expiresIn: '1h'
-}
-const verifyOptions: VerifyOptions = {
-  algorithms: ['RS256']
 }
 
 const createAuthToken = (userId: string): Promise<string>  => {
@@ -31,7 +28,8 @@ const createAuthToken = (userId: string): Promise<string>  => {
   })
 }
 
-async function signUp(name: string, email: string, password: string) {
+async function signUp(user: User) {
+  const { name, email, password } = user
   try {
     const result = await query('SELECT * FROM users WHERE email = $1', [email]);
     if(result.rowCount > 0) {
@@ -47,8 +45,8 @@ async function signUp(name: string, email: string, password: string) {
   }
 }
 
-
-async function signIn(email: string, password: string) {
+async function signIn(user: User) {
+  const { email, password } = user
   try {
     const result = await query('SELECT * FROM users WHERE email = $1', [email]);
     console.log('SERVICE RES', result);
@@ -61,37 +59,11 @@ async function signIn(email: string, password: string) {
       return {error: {type: 'invalid_password', message: 'Invalid password'}} 
     }
     const authToken = await createAuthToken(user.id)
-    return { token: authToken }
+    return { userId: user.id, token: authToken }
   } catch (error) {
     console.log('SERVICE ERROR FROM DB', error)  
     return Promise.reject({error: {type: 'internal_server_error', message: 'Internal Server Error'}})
   }
 }
-
-
-// async function getUserById(id: string) {
-//   const sql = 'SELECT * FROM users WHERE id = $1';
-//   const params = [id];
-//   try {
-//     const res = await query(sql, params);
-//     console.log('SERVICE RES', res?.rows[0]);
-//     return res?.rows[0]
-//   } catch (error) {
-//     console.log('SERVICE ERROR FROM DB', error.message)  
-//     return Promise.reject({error: {type: 'internal_server_error', message: 'Internal Server Error'}})
-//   }
-// }
-//
-// async function getUsers() {
-//   const sql = 'SELECT * FROM users'
-//   try {
-//     const res = await query(sql);
-//     console.log('SERVICE ROW RES', res?.rows);
-//     return res?.rows
-//   } catch (error) {
-//     console.log('SERVICE ERROR FROM DB', error.message)  
-//     return Promise.reject({error: {type: 'internal_server_error', message: 'Internal Server Error'}})
-//   }
-// }
 
 export default { signUp, signIn }

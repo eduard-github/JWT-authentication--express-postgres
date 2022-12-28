@@ -4,6 +4,7 @@ import {Express} from 'express-serve-static-core'
 import morgan from 'morgan'
 
 import usersModule from '../api/user/user.module'
+import { auth } from '../middleware/auth'
 
 export async function createServer(): Promise<Express> {
   const server: Express = express()
@@ -14,7 +15,7 @@ export async function createServer(): Promise<Express> {
 
   server.use('/user', usersModule)
 
-  server.get('/', (_req, res) => {
+  server.get('/', auth, (_req, res) => {
     res.send('Hello world!')
   })
 
